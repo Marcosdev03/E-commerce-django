@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'perfil',
     'produto',
     'endereco',
+    'carrinho_de_compras',
 
 
     # TODO: 'REMOVER debug_toolbar em produção'

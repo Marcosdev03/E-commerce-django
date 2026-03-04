@@ -5,6 +5,7 @@ import os
 from PIL import Image
 from django.db import models
 from django.conf import settings
+from django.utils.text import slugify
 
 
 class Produto(models.Model):
@@ -17,7 +18,7 @@ class Produto(models.Model):
     descricao_longa = models.TextField()
     imagem = models.ImageField(
         upload_to='produto_imagens/%y/%m/', blank=True, null=True)
-    slug = models.SlugField(unique=True)
+    slug = models.SlugField(unique=True, blank=True, null=True)
     preco_marketing = models.DecimalField(decimal_places=2, max_digits=10)
     preco_marketing_promocional = models.DecimalField(
         default=0, decimal_places=2, max_digits=10)
@@ -25,7 +26,7 @@ class Produto(models.Model):
         default='V',
         max_length=1,
         choices=(
-            ('V', 'Variação'),
+            ('V', 'Variavel'),
             ('S', 'Simples'),
         )
     )
@@ -52,6 +53,10 @@ class Produto(models.Model):
         new_img.save(img_full_path, quality=70, optimize=True)
 
     def save(self, *args, **kwargs):
+        if not self.slug:
+            slug = f'{slugify(self.nome)}'
+            self.slug = slug
+
         super().save(*args, **kwargs)
 
         max_image_size = 800
@@ -61,6 +66,26 @@ class Produto(models.Model):
 
     def __str__(self):
         return self.nome
+
+    def get_preco_formatado(self):
+        """
+        Método para formatar o preço do produto, 
+        exibindo-o com o símbolo de moeda e separando os milhares.
+        """
+
+        return f"R$ {
+            self.preco_marketing:.2f
+        }".replace(",", "X").replace(".", ",").replace("X", ".")
+
+    def get_preco_promocional_formatado(self):
+        """
+        Método para formatar o preço promocional do produto, 
+        exibindo-o com o símbolo de moeda e separando os milhares.
+        """
+
+        return f"R$ {
+            self.preco_marketing_promocional:.2f
+        }".replace(",", "X").replace(".", ",").replace("X", ".")
 
 
 class Variacao(models.Model):
