@@ -6,6 +6,7 @@ from PIL import Image
 from django.db import models
 from django.conf import settings
 from django.utils.text import slugify
+from utils.urls import formata_preco
 
 
 class Produto(models.Model):
@@ -66,6 +67,7 @@ class Produto(models.Model):
 
     def __str__(self):
         return self.nome
+    
 
     def get_preco_formatado(self):
         """
@@ -73,9 +75,8 @@ class Produto(models.Model):
         exibindo-o com o símbolo de moeda e separando os milhares.
         """
 
-        return f"R$ {
-            self.preco_marketing:.2f
-        }".replace(",", "X").replace(".", ",").replace("X", ".")
+        return formata_preco(self.preco_marketing)
+    
 
     def get_preco_promocional_formatado(self):
         """
@@ -83,9 +84,7 @@ class Produto(models.Model):
         exibindo-o com o símbolo de moeda e separando os milhares.
         """
 
-        return f"R$ {
-            self.preco_marketing_promocional:.2f
-        }".replace(",", "X").replace(".", ",").replace("X", ".")
+        return formata_preco(self.preco_marketing_promocional)
 
 
 class Variacao(models.Model):
