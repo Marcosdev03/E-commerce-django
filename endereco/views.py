@@ -15,7 +15,7 @@ class NovoEndereco(View):
 
 class EditarEndereco(View):
     """
-    URL: /endereco/editar/<int:endereco_id>/
+    URL: /endereco/editarendereco/<int:endereco_id>/
     """
 
     def get(self, *args, **kwargs):

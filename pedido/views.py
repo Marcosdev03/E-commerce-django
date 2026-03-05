@@ -16,7 +16,7 @@ class Pagar(View):
 
 class FecharPedido(View):
     """
-    URL: /pedido/fecharpedido/
+    URL: /pedido/fecharpedido/<int:pedido_id>/
     """
 
     def get(self, *args, **kwargs):
@@ -25,7 +25,7 @@ class FecharPedido(View):
 
 class Detalhe(View):
     """
-    URL: /pedido/detalhe/
+    URL: /pedido/detalhe/<int:pedido_id>/
     """
 
     def get(self, *args, **kwargs):

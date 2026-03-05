@@ -6,7 +6,7 @@ from django.views.generic import ListView
 
 class CriaPerfil(View):
     """
-    URL: /perfil/criar/
+    URL: /perfil/
     """
 
     def get(self, *args, **kwargs):
