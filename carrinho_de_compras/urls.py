@@ -6,10 +6,10 @@ app_name = 'carrinho_de_compras'
 
 urlpatterns = [
     path('', views.Carrinho.as_view(), name='carrinho'),
-    path('adicionar/<int:produto_id>/',
-         views.AdicionarProduto.as_view(), name='adicionar'),
-    path('removerdocarrinho/<int:produto_id>/',
+    path('adicionaraocarrinho/',
+         views.AdicionarProduto.as_view(), name='adicionaraocarrinho'),
+    path('removerdocarrinho/',
          views.RemoverProdutoDoCarrinho.as_view(), name='remover'),
-    path('atualizar/<int:produto_id>/',
+    path('atualizar/',
          views.AtualizarProduto.as_view(), name='atualizar'),
 ]

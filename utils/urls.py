@@ -1,2 +1,6 @@
 def formata_preco(valor):
-    return f'R$ {valor:.2f}'.replace('.', ',')
+    try:
+        numero = float(valor)
+    except (ValueError, TypeError):
+        return valor  # se não for número, retorna como está
+    return f'R$ {numero:.2f}'.replace('.', ',')

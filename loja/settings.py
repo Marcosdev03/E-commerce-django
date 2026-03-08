@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'endereco',
     'carrinho_de_compras',
     'templates',
+
     
 
 

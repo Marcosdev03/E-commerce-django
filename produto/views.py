@@ -3,6 +3,7 @@ from django.views import View
 from django.shortcuts import render
 from django.http import HttpResponse
 from django.views.generic import ListView
+from django.views.generic import DetailView
 
 
 class ListaProdutos(ListView):
@@ -15,13 +16,15 @@ class ListaProdutos(ListView):
     paginate_by = 10
 
 
-class DetalheProduto(View):
+class DetalheProduto(DetailView):
     """
-    URL: /produtos/detalhe/<int:produto_id>/
+    URL: /produtos/detalhe/<slug:slug>/
     """
-
-    def get(self, *args, **kwargs):
-        return HttpResponse("GET: Detalhe do produto")
+    model = models.Produto
+    template_name = "produto/detalhes.html"
+    context_object_name = "produto"
+    slug_url_kwarg = "slug"
+    
 
 
 class ExcluirProduto(View):
