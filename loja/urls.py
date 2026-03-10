@@ -20,12 +20,13 @@ from django.urls import include, path
 from django.conf.urls.static import static
 
 urlpatterns = [
+
     path('admin/', admin.site.urls),
-    path('', include('produto.urls')),
     path('perfil/', include('perfil.urls')),
     path('pedido/', include('pedido.urls')),
     path('endereco/', include('endereco.urls')),
     path('carrinho_de_compras/', include('carrinho_de_compras.urls')),
+    path('', include('produto.urls')),
     
     
 

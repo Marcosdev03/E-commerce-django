@@ -6,6 +6,7 @@ app_name = 'endereco'
 
 
 urlpatterns = [
+     path('', views.NovoEndereco.as_view(), name='inicio'),
     path('novo/', views.NovoEndereco.as_view(), name='novo'),
     path('editar/<int:pk>/',
          views.EditarEndereco.as_view(), name='editar'),
