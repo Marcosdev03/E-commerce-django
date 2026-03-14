@@ -24,7 +24,7 @@ class Perfil(models.Model):
         """
         error_messages = {}
 
-        if not valida_cpf(self.cpf):
+        if self.cpf and not valida_cpf(self.cpf):
             error_messages['cpf'] = 'Digite um CPF válido.'
 
         if error_messages:

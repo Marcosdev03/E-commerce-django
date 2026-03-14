@@ -2,6 +2,137 @@
     font-size: 1.5rem;
 }
 
+:root {
+    --brand-900: #0f172a;
+    --brand-800: #1e293b;
+    --brand-700: #334155;
+    --accent-500: #06b6d4;
+    --accent-400: #22d3ee;
+    --surface-0: #ffffff;
+    --surface-50: #f8fafc;
+    --text-main: #0f172a;
+}
+
+body {
+    font-family: "Manrope", "Segoe UI", sans-serif;
+    background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+    color: var(--text-main);
+}
+
+.navbar-modern {
+    background: #17a2b8;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.22);
+    padding: 0.75rem 1rem;
+}
+
+.navbar-brand-modern {
+    color: var(--surface-0) !important;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    font-size: 1.35rem;
+}
+
+.navbar-brand-modern:hover {
+    color: var(--accent-400) !important;
+}
+
+.nav-link-modern {
+    color: rgba(248, 250, 252, 0.86) !important;
+    font-weight: 600;
+    padding: 0.5rem 0.8rem !important;
+    border-radius: 10px;
+    transition: all 0.2s ease;
+}
+
+.nav-link-modern:hover,
+.navbar-nav .active .nav-link-modern {
+    color: #ffffff !important;
+    background: rgba(34, 211, 238, 0.16);
+}
+
+.dropdown-menu-modern {
+    border: 0;
+    border-radius: 12px;
+    box-shadow: 0 14px 30px rgba(2, 6, 23, 0.2);
+    padding: 0.4rem;
+}
+
+.dropdown-menu-modern .dropdown-item {
+    border-radius: 8px;
+    font-weight: 600;
+    padding: 0.55rem 0.8rem;
+}
+
+.dropdown-menu-modern .dropdown-item:hover {
+    background: var(--surface-50);
+}
+
+.form-search-modern {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.input-search-modern {
+    min-width: 220px;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.45);
+    padding-left: 0.95rem;
+    background: rgba(248, 250, 252, 0.96);
+}
+
+.btn-search-modern {
+    border-radius: 999px;
+    border: 0;
+    font-weight: 700;
+    color: #082f49;
+    background: linear-gradient(135deg, var(--accent-400), var(--accent-500));
+    padding: 0.42rem 0.9rem;
+}
+
+.btn-search-modern:hover {
+    color: #082f49;
+    filter: brightness(1.06);
+}
+
+.nav-item-cart-modern {
+    margin-left: 0.4rem;
+}
+
+.nav-cart-link-modern {
+    color: #022c22 !important;
+    font-weight: 700;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #bbf7d0, #86efac);
+    padding: 0.42rem 0.95rem !important;
+}
+
+.nav-cart-link-modern:hover {
+    filter: brightness(1.04);
+}
+
+.navbar-toggler-modern {
+    border-color: rgba(148, 163, 184, 0.5);
+}
+
+@media (max-width: 991.98px) {
+    .input-search-modern {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .form-search-modern {
+        margin-top: 0.6rem;
+        margin-bottom: 0.6rem;
+    }
+
+    .nav-item-cart-modern {
+        margin-left: 0;
+        margin-top: 0.4rem;
+    }
+}
+
 .product-price {
     font-size: 1.5rem;
 }

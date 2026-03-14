@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% load omfilters %}
+
+{% block conteudo %}
+<div class="row">
+    <div class="col-lg-8">
+        <h3 class="mb-3">Resumo do pedido #{{ pedido.id }}</h3>
+
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Produto</th>
+                        <th>Variacao</th>
+                        <th>Qtd</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in itens %}
+                    <tr>
+                        <td>{{ item.produto }}</td>
+                        <td>{{ item.variacao }}</td>
+                        <td>{{ item.quantidade }}</td>
+                        <td>
+                            {% if item.preco_promocional %}
+                            {{ item.preco_promocional|formata_preco }}
+                            {% else %}
+                            {{ item.preco|formata_preco }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <h5>Entrega</h5>
+        <p>
+            {{ endereco.rua }}, {{ endereco.numero }}<br>
+            {{ endereco.bairro }} - {{ endereco.cidade }}/{{ endereco.estado }}<br>
+            CEP: {{ endereco.cep }}
+        </p>
+
+        <h5>Total</h5>
+        <p class="lead">{{ pedido.total|formata_preco }}</p>
+
+        <a class="btn btn-primary btn-block" href="{% url 'pedido:fechar-pedido' pedido.id %}">
+            Fechar pedido
+        </a>
+    </div>
+</div>
+{% endblock %}

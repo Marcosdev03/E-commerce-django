@@ -5,13 +5,26 @@ from django.http import HttpResponse
 from django.views.generic import View
 from django.shortcuts import render, redirect, reverse, get_object_or_404
 
-class Carrinho(View):
-    """
-    URL: /carrinho/
-    """
 
+def _obter_preco_total_item(item):
+    preco_promocional = item.get('preco_quantitativo_promocional')
+    if preco_promocional is not None:
+        return preco_promocional
+    return item.get('preco_quantitativo', 0)
+
+
+class Carrinho(View):
     def get(self, *args, **kwargs):
-        return render(self.request, 'carrinho_de_compras/carrinho.html')
+        carrinho = self.request.session.get('carrinho', {})
+
+        total = sum(_obter_preco_total_item(item) for item in carrinho.values())
+        
+        contexto = {
+            'carrinho': carrinho,
+            'preco_quantitativo': total
+        }
+        
+        return render(self.request, 'carrinho_de_compras/carrinho.html', contexto)
 
 
 class AdicionarAoCarrinho(View):
@@ -20,12 +33,6 @@ class AdicionarAoCarrinho(View):
     """
 
     def get(self, *args, **kwargs):
-
-        # TODO: REMOVER LINHAS ABAIXO
-        #if self.request.session.get('carrinho'):
-            #del self.request.session['carrinho']
-            #self.request.session.save()
-
         http_referer = self.request.META.get('HTTP_REFERER', reverse(
             'produto:lista')) 
         
@@ -77,15 +84,17 @@ class AdicionarAoCarrinho(View):
                 )
                 quantidade_carrinho = variacao_estoque
 
-                return redirect(http_referer)
+                
 
             carrinho[variacao_id]['quantidade'] = quantidade_carrinho
 
             carrinho[variacao_id]['preco_quantitativo'] = (
                 preco_unitario * quantidade_carrinho)
             
-            carrinho[variacao_id]['preco_quantativo_promocional'] = (
-                preco_unitario_promocional * quantidade_carrinho)
+            carrinho[variacao_id]['preco_quantitativo_promocional'] = (
+                preco_unitario_promocional * quantidade_carrinho
+                if preco_unitario_promocional is not None and preco_unitario_promocional > 0 else None
+            )
         else:
             carrinho[variacao_id] = {
                     'produto_id': produto_id,
@@ -95,11 +104,12 @@ class AdicionarAoCarrinho(View):
                     'preco_unitario': preco_unitario,
                     'preco_unitario_promocional': preco_unitario_promocional,
                     'preco_quantitativo': preco_unitario,
-                    'preco_quantitativo_promocional': preco_unitario_promocional,
+                    'preco_quantitativo_promocional': preco_unitario_promocional if preco_unitario_promocional is not None and preco_unitario_promocional > 0 else None,
                     'quantidade': quantidade,
                     'slug': slug,
                     'imagem': imagem
             }
+            
 
         self.request.session.save()
         
@@ -114,7 +124,27 @@ class RemoverProdutoDoCarrinho(View):
     """
 
     def get(self, *args, **kwargs):
-        return HttpResponse('Remover um produto do carrinho de compras')
+        variacao_id = self.request.GET.get('vid')
+
+        if not variacao_id:
+            messages.error(self.request, 'Produto não encontrado no carrinho.')
+            return redirect('carrinho_de_compras:carrinho')
+
+        carrinho = self.request.session.get('carrinho', {})
+
+        if variacao_id not in carrinho:
+            messages.error(self.request, 'Produto não encontrado no carrinho.')
+            return redirect('carrinho_de_compras:carrinho')
+
+        produto_nome = carrinho[variacao_id].get('produto_nome', 'Produto')
+        del carrinho[variacao_id]
+        self.request.session.save()
+
+        messages.success(
+            self.request,
+            f'{produto_nome} removido do carrinho de compras.'
+        )
+        return redirect('carrinho_de_compras:carrinho')
 
 
 class AtualizarProdutoDoCarrinho(View):

@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block conteudo %}
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <h3 class="mb-3">{% if endereco %}Editar endereco{% else %}Novo endereco{% endif %}</h3>
+
+        <form method="post">
+            {% csrf_token %}
+            {% for field in form %}
+            <div class="form-group">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {{ field.errors }}
+            </div>
+            {% endfor %}
+
+            <button class="btn btn-primary" type="submit">Salvar</button>
+            <a class="btn btn-link" href="{% url 'perfil:atualizar' %}">Voltar</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

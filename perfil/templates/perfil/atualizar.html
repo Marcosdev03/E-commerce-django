@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% load omfilters %}
+
+{% block conteudo %}
+<div class="row">
+    <div class="col-lg-8">
+        <h3 class="mb-3">Meu perfil</h3>
+
+        <form method="post">
+            {% csrf_token %}
+
+            <h5>Dados do usuario</h5>
+            {% for field in user_form %}
+            <div class="form-group">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {{ field.errors }}
+            </div>
+            {% endfor %}
+
+            <hr>
+            <h5>Dados do perfil</h5>
+            {% for field in perfil_form %}
+            <div class="form-group">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {{ field.errors }}
+            </div>
+            {% endfor %}
+
+            <button class="btn btn-primary" type="submit">Salvar alteracoes</button>
+        </form>
+    </div>
+
+    <div class="col-lg-4 mt-4 mt-lg-0">
+        <h5>Enderecos</h5>
+        <a class="btn btn-sm btn-success mb-3" href="{% url 'endereco:novo' %}">Novo endereco</a>
+
+        {% for endereco in enderecos %}
+        <div class="card mb-2">
+            <div class="card-body">
+                <div>{{ endereco.rua }}, {{ endereco.numero }}</div>
+                <div>{{ endereco.bairro }} - {{ endereco.cidade }}/{{ endereco.estado }}</div>
+                <div>CEP: {{ endereco.cep }}</div>
+                <a class="btn btn-sm btn-outline-primary mt-2" href="{% url 'endereco:editar' endereco.pk %}">Editar</a>
+                <a class="btn btn-sm btn-outline-danger mt-2"
+                    href="{% url 'endereco:excluir' endereco.pk %}">Excluir</a>
+            </div>
+        </div>
+        {% empty %}
+        <p>Nenhum endereco cadastrado.</p>
+        {% endfor %}
+
+        <hr>
+
+        <h5>Minhas compras</h5>
+        {% for pedido in pedidos %}
+        <div class="card mb-2">
+            <div class="card-body">
+                <div><strong>Pedido #{{ pedido.id }}</strong></div>
+                <div>Status: {{ pedido.get_status_display }}</div>
+                <div>Total: {{ pedido.total|formata_preco }}</div>
+                <a class="btn btn-sm btn-outline-secondary mt-2" href="{% url 'pedido:detalhe' pedido.id %}">
+                    Ver detalhes
+                </a>
+                {% if pedido.status == 'C' or pedido.status == 'P' %}
+                <div class="small text-warning mt-2">Aguardando finalizacao.</div>
+                <a class="btn btn-sm btn-success mt-2" href="{% url 'pedido:fechar-pedido' pedido.id %}">
+                    <i class="fas fa-check-circle"></i>
+                    {% if pedido.status == 'C' %}
+                    Enviar pedido
+                    {% else %}
+                    Finalizar compra
+                    {% endif %}
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <p>Voce ainda nao fez compras.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

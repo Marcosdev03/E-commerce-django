@@ -63,8 +63,8 @@ class Endereco(models.Model):
         if error_messages:
             raise ValidationError(error_messages)
 
-        def __str__(self):
-            return f"{self.rua}, {self.numero} - {self.bairro}, {self.cidade} - {self.estado}"
+    def __str__(self):
+        return f"{self.rua}, {self.numero} - {self.bairro}, {self.cidade} - {self.estado}"
 
     class Meta:
         verbose_name = "Endereço"

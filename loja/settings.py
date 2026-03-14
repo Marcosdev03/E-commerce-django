@@ -82,6 +82,8 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'carrinho_de_compras.context_processors.quantidade_total_carrinho',
+                'produto.context_processors.categorias_nav',
             ],
         },
     },
@@ -135,13 +137,13 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / os.path.join(BASE_DIR, 'static')
 STATIC_FILES_DIRS = [
     os.path.join('templates/static')
 ]
 
-MEDIA_URL = 'media/'
+MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / os.path.join(BASE_DIR, 'media')
 
 MESSAGE_TAGS = {
@@ -174,5 +176,5 @@ INTERNAL_IPS = [
     # ...
 ]
 
-MEDIA_URL = 'media/'
+MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

@@ -1,6 +1,12 @@
+from decimal import Decimal, InvalidOperation
+
+
 def formata_preco(valor):
     try:
-        numero = float(valor)
-    except (ValueError, TypeError):
+        numero = Decimal(str(valor))
+    except (InvalidOperation, ValueError, TypeError):
         return valor  # se não for número, retorna como está
-    return f'R$ {numero:.2f}'.replace('.', ',')
+
+    valor_formatado = f'{numero:,.2f}'
+    valor_formatado = valor_formatado.replace(',', 'X').replace('.', ',').replace('X', '.')
+    return f'R$ {valor_formatado}'

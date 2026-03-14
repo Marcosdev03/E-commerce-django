@@ -3,10 +3,11 @@
     <ul class="pagination">
         {% if page_obj.has_previous %}
         <li class="page-item">
-            <a class="page-link" href="?page=1">&laquo;</a>
+            <a class="page-link" href="?page=1{% if extra_query %}&{{ extra_query }}{% endif %}">&laquo;</a>
         </li>
         <li class="page-item">
-            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">&lsaquo;</a>
+            <a class="page-link"
+                href="?page={{ page_obj.previous_page_number }}{% if extra_query %}&{{ extra_query }}{% endif %}">&lsaquo;</a>
         </li>
         {% endif %}
 
@@ -14,24 +15,25 @@
 
         {% if page_obj.number == num %}
         <li class="page-item active">
-            <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+            <a class="page-link" href="?page={{ num }}{% if extra_query %}&{{ extra_query }}{% endif %}">{{ num }}</a>
         </li>
-        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-        <li class="page-item">
-            <a class="page-link" href="?page={{ num }}">{{ num }}</a>
-        </li>
-        {% endif %}
+        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %} <li class="page-item">
+            <a class="page-link" href="?page={{ num }}{% if extra_query %}&{{ extra_query }}{% endif %}">{{ num }}</a>
+            </li>
+            {% endif %}
 
-        {% endfor %}
+            {% endfor %}
 
-        {% if page_obj.has_next %}
-        <li class="page-item">
-            <a class="page-link" href="?page={{ page_obj.next_page_number }}">&rsaquo;</a>
-        </li>
-        <li class="page-item">
-            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">&raquo;</a>
-        </li>
-        {% endif %}
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link"
+                    href="?page={{ page_obj.next_page_number }}{% if extra_query %}&{{ extra_query }}{% endif %}">&rsaquo;</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link"
+                    href="?page={{ page_obj.paginator.num_pages }}{% if extra_query %}&{{ extra_query }}{% endif %}">&raquo;</a>
+            </li>
+            {% endif %}
     </ul>
 </div>
 {% endif %}

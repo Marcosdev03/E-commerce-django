@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block conteudo %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <h3 class="mb-3">Excluir endereco</h3>
+        <p>Tem certeza que deseja excluir este endereco?</p>
+        <p><strong>{{ endereco.rua }}, {{ endereco.numero }} - {{ endereco.bairro }}</strong></p>
+
+        <form method="post">
+            {% csrf_token %}
+            <button class="btn btn-danger" type="submit">Excluir</button>
+            <a class="btn btn-link" href="{% url 'perfil:atualizar' %}">Cancelar</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

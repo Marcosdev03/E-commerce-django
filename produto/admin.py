@@ -41,7 +41,9 @@ class ProdutoAdmin(admin.ModelAdmin):
     ]
 
     list_display = ['nome', 'get_preco_formatado',
-                    'get_preco_promocional_formatado', 'tipo']
+                    'get_preco_promocional_formatado', 'tipo', 'categoria']
+    list_filter = ['tipo', 'categoria']
+    search_fields = ['nome', 'descricao_curta']
 
     @admin.display(description='Preço')
     def get_preco_formatado(self, obj):
@@ -61,3 +63,4 @@ class ProdutoAdmin(admin.ModelAdmin):
 
 admin.site.register(models.Produto, ProdutoAdmin)
 admin.site.register(models.Variacao)
+admin.site.register(models.Categoria)

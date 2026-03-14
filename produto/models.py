@@ -9,12 +9,36 @@ from django.utils.text import slugify
 from utils.urls import formata_preco
 
 
+class Categoria(models.Model):
+    nome = models.CharField(max_length=100, unique=True)
+    slug = models.SlugField(unique=True, blank=True, null=True)
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.nome)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.nome
+
+    class Meta:
+        verbose_name = 'Categoria'
+        verbose_name_plural = 'Categorias'
+
+
 class Produto(models.Model):
     """
     Modelo de Produto, representando um produto no sistema.
     """
 
     nome = models.CharField(max_length=255)
+    categoria = models.ForeignKey(
+        Categoria,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='produtos',
+    )
     descricao_curta = models.TextField(max_length=255)
     descricao_longa = models.TextField()
     imagem = models.ImageField(
