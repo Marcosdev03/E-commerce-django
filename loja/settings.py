@@ -23,12 +23,26 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-tizqcr=z&cxguf7rf-mxaj@ece0=sl39nl!@pwj^1wgl&gt!hn'
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-change-me')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    host.strip() for host in os.getenv(
+        'ALLOWED_HOSTS',
+        'marcosfreitas.dev,www.marcosfreitas.dev,127.0.0.1,localhost'
+    ).split(',') if host.strip()
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip() for origin in os.getenv(
+        'CSRF_TRUSTED_ORIGINS',
+        'https://marcosfreitas.dev,https://www.marcosfreitas.dev'
+    ).split(',') if origin.strip()
+]
+
+FORCE_SCRIPT_NAME = os.getenv('FORCE_SCRIPT_NAME', '/ecomecer')
 
 
 # Application definition
@@ -50,12 +64,14 @@ INSTALLED_APPS = [
     
 
 
-    # TODO: 'REMOVER debug_toolbar em produção'
-    'debug_toolbar',
 ]
+
+if DEBUG:
+    INSTALLED_APPS.append('debug_toolbar')
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -63,9 +79,10 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 
-    # TODO: 'REMOVER debug_toolbar em produção'
-    'debug_toolbar.middleware.DebugToolbarMiddleware',
 ]
+
+if DEBUG:
+    MIDDLEWARE.append('debug_toolbar.middleware.DebugToolbarMiddleware')
 
 ROOT_URLCONF = 'loja.urls'
 
@@ -137,14 +154,15 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
-STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / os.path.join(BASE_DIR, 'static')
-STATIC_FILES_DIRS = [
-    os.path.join('templates/static')
+STATIC_URL = f'{FORCE_SCRIPT_NAME}/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'templates', 'static')
 ]
 
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / os.path.join(BASE_DIR, 'media')
+MEDIA_URL = f'{FORCE_SCRIPT_NAME}/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 MESSAGE_TAGS = {
     constants.DEBUG: 'alert-info',
@@ -159,6 +177,11 @@ SESSION_COOKIE_AGE = 60 * 60 * 24 * 7
 
 # Salvar a cada requisição
 SESSION_SAVE_EVERY_REQUEST = False
+
+# Use named URLs so redirects respect FORCE_SCRIPT_NAME (/ecomecer).
+LOGIN_URL = 'perfil:login'
+LOGIN_REDIRECT_URL = 'produto:lista'
+LOGOUT_REDIRECT_URL = 'produto:lista'
 
 # Serializer - Padrão JSON
 # SESSION_SERIALIZER = 'django.contrib.sessions.serializers.PickleSerializer'
@@ -176,5 +199,5 @@ INTERNAL_IPS = [
     # ...
 ]
 
-MEDIA_URL = '/media/'
+MEDIA_URL = f'{FORCE_SCRIPT_NAME}/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
