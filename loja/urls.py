@@ -17,7 +17,9 @@ Including another URLconf
 from django.conf import settings
 from django.contrib import admin
 from django.urls import include, path
+from django.urls import re_path
 from django.conf.urls.static import static
+from django.views.static import serve
 
 urlpatterns = [
 
@@ -44,3 +46,15 @@ if settings.DEBUG:
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+
+# In this deployment, media requests can arrive either as /media/... or
+# /ecomecer/media/... depending on proxy routing. Keep both mapped.
+urlpatterns += [
+    re_path(r'^media/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT}),
+]
+
+if settings.FORCE_SCRIPT_NAME:
+    script_prefix = settings.FORCE_SCRIPT_NAME.strip('/')
+    urlpatterns += [
+        re_path(rf'^{script_prefix}/media/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT}),
+    ]
