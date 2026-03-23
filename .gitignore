@@ -18,3 +18,4 @@ __pycache__/
 # OS/editor files
 .DS_Store
 .vscode/
+.idea/
