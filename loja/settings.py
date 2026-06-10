@@ -213,7 +213,7 @@ if AZURE_ACCOUNT_NAME and AZURE_ACCOUNT_KEY:
             },
         },
         "staticfiles": {
-            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+            "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
         },
     }
 
