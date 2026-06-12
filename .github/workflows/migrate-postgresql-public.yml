@@ -58,31 +58,42 @@ jobs:
             exit 1
           fi
 
+          admin_password="$(openssl rand -hex 24)"
+          echo "::add-mask::$admin_password"
+
           if az postgres flexible-server show \
             --name "$NEW_SERVER" \
             --resource-group "$RESOURCE_GROUP" \
             >/dev/null 2>&1; then
-            echo "::error title=Server already exists::This migration workflow is intentionally single-use."
-            exit 1
+            echo "Reusing the PostgreSQL server created by the previous run."
+            az postgres flexible-server update \
+              --name "$NEW_SERVER" \
+              --resource-group "$RESOURCE_GROUP" \
+              --admin-password "$admin_password" \
+              --yes \
+              >/dev/null
+          else
+            az postgres flexible-server create \
+              --name "$NEW_SERVER" \
+              --resource-group "$RESOURCE_GROUP" \
+              --location canadacentral \
+              --admin-user "$ADMIN_USER" \
+              --admin-password "$admin_password" \
+              --version 16 \
+              --tier Burstable \
+              --sku-name Standard_B1ms \
+              --storage-size 32 \
+              --backup-retention 7 \
+              --public-access "$ALLOWED_IP" \
+              --yes
           fi
 
-          admin_password="$(openssl rand -hex 24)"
-          echo "::add-mask::$admin_password"
-
-          az postgres flexible-server create \
+          az postgres flexible-server firewall-rule delete \
             --name "$NEW_SERVER" \
             --resource-group "$RESOURCE_GROUP" \
-            --location canadacentral \
-            --admin-user "$ADMIN_USER" \
-            --admin-password "$admin_password" \
-            --version 16 \
-            --tier Burstable \
-            --sku-name Standard_B1ms \
-            --storage-size 32 \
-            --backup-retention 7 \
-            --public-access "$ALLOWED_IP" \
-            --yes
-
+            --rule-name dbeaver-home \
+            --yes \
+            >/dev/null 2>&1 || true
           az postgres flexible-server firewall-rule create \
             --name "$NEW_SERVER" \
             --resource-group "$RESOURCE_GROUP" \
@@ -91,12 +102,18 @@ jobs:
             --end-ip-address "$ALLOWED_IP"
 
           for database in lojatech checklists_prod; do
-            az postgres flexible-server db create \
+            if ! az postgres flexible-server db show \
               --server-name "$NEW_SERVER" \
               --resource-group "$RESOURCE_GROUP" \
               --database-name "$database" \
-              --charset UTF8 \
-              --collation en_US.utf8
+              >/dev/null 2>&1; then
+              az postgres flexible-server db create \
+                --server-name "$NEW_SERVER" \
+                --resource-group "$RESOURCE_GROUP" \
+                --database-name "$database" \
+                --charset UTF8 \
+                --collation en_US.utf8
+            fi
           done
 
           az containerapp secret set \
