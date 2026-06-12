@@ -128,3 +128,16 @@ class Variacao(models.Model):
     class Meta:
         verbose_name = 'Variação'
         verbose_name_plural = 'Variações'
+
+
+class ImportacaoLegada(models.Model):
+    chave = models.CharField(max_length=100, unique=True)
+    concluida_em = models.DateTimeField(auto_now_add=True)
+    resumo = models.JSONField(default=dict, blank=True)
+
+    def __str__(self):
+        return self.chave
+
+    class Meta:
+        verbose_name = 'Importação legada'
+        verbose_name_plural = 'Importações legadas'
