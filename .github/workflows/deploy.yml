@@ -1,9 +1,6 @@
 name: Deploy E-commerce
 
 on:
-  push:
-    branches:
-      - producao
   workflow_dispatch:
 
 concurrency:

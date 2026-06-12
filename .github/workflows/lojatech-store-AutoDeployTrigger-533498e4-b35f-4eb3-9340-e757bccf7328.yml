@@ -42,3 +42,23 @@ jobs:
           resourceGroup: rg-lojatech-prod
           imageToBuild: acrlojatechprod-a8b7ctgnajcveccq.azurecr.io/lojatech-store:${{ github.sha }}
 
+      - name: Inspect revision startup
+        if: always()
+        run: |
+          az containerapp revision list \
+            --name lojatech-store \
+            --resource-group rg-lojatech-prod \
+            --query "[].{name:name,active:properties.active,health:properties.healthState,running:properties.runningState,provisioning:properties.provisioningState,replicas:properties.replicas,traffic:properties.trafficWeight}" \
+            --output table
+
+          az containerapp logs show \
+            --name lojatech-store \
+            --resource-group rg-lojatech-prod \
+            --type system \
+            --tail 100 || true
+
+          az containerapp logs show \
+            --name lojatech-store \
+            --resource-group rg-lojatech-prod \
+            --type console \
+            --tail 100 || true
