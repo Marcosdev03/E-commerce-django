@@ -45,20 +45,49 @@ jobs:
       - name: Inspect revision startup
         if: always()
         run: |
-          az containerapp revision list \
+          revisions="$(az containerapp revision list \
             --name lojatech-store \
             --resource-group rg-lojatech-prod \
             --query "[].{name:name,active:properties.active,health:properties.healthState,running:properties.runningState,provisioning:properties.provisioningState,replicas:properties.replicas,traffic:properties.trafficWeight}" \
-            --output table
+            --output json)"
 
-          az containerapp logs show \
+          latest_revision="$(az containerapp revision list \
             --name lojatech-store \
             --resource-group rg-lojatech-prod \
+            --query "sort_by(@, &properties.createdTime)[-1].name" \
+            --output tsv)"
+
+          system_logs="$(az containerapp logs show \
+            --name lojatech-store \
+            --resource-group rg-lojatech-prod \
+            --revision "$latest_revision" \
             --type system \
-            --tail 100 || true
+            --tail 100 2>&1 || true)"
 
-          az containerapp logs show \
+          console_logs="$(az containerapp logs show \
             --name lojatech-store \
             --resource-group rg-lojatech-prod \
+            --revision "$latest_revision" \
             --type console \
-            --tail 100 || true
+            --tail 100 2>&1 || true)"
+
+          {
+            echo "## Azure Container Apps"
+            echo
+            echo "Latest revision: \`$latest_revision\`"
+            echo
+            echo "### Revisions"
+            echo '```json'
+            echo "$revisions"
+            echo '```'
+            echo
+            echo "### System logs"
+            echo '```text'
+            echo "$system_logs"
+            echo '```'
+            echo
+            echo "### Console logs"
+            echo '```text'
+            echo "$console_logs"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
