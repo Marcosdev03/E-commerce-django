@@ -42,6 +42,66 @@ jobs:
           resourceGroup: rg-lojatech-prod
           imageToBuild: acrlojatechprod-a8b7ctgnajcveccq.azurecr.io/lojatech-store:${{ github.sha }}
 
+      - name: Route traffic to the healthy latest revision
+        run: |
+          latest_revision="$(az containerapp revision list \
+            --name lojatech-store \
+            --resource-group rg-lojatech-prod \
+            --query "sort_by(@, &properties.createdTime)[-1].name" \
+            --output tsv)"
+
+          for attempt in $(seq 1 30); do
+            state="$(az containerapp revision show \
+              --name lojatech-store \
+              --resource-group rg-lojatech-prod \
+              --revision "$latest_revision" \
+              --query "[properties.healthState,properties.runningState,properties.provisioningState,properties.provisioningError]" \
+              --output tsv)"
+
+            echo "Revision $latest_revision: $state"
+            health="$(echo "$state" | cut -f1)"
+            running="$(echo "$state" | cut -f2)"
+            provisioning="$(echo "$state" | cut -f3)"
+
+            if [ "$health" = "Healthy" ] && [ "$running" = "Running" ]; then
+              az containerapp ingress traffic set \
+                --name lojatech-store \
+                --resource-group rg-lojatech-prod \
+                --revision-weight latest=100
+              break
+            fi
+
+            if [ "$running" = "Failed" ] || [ "$provisioning" = "Failed" ]; then
+              echo "::error title=Azure revision failed::$state"
+              exit 1
+            fi
+
+            if [ "$attempt" = "30" ]; then
+              echo "::error title=Azure revision timeout::$state"
+              exit 1
+            fi
+
+            sleep 10
+          done
+
+          app_url="https://$(az containerapp show \
+            --name lojatech-store \
+            --resource-group rg-lojatech-prod \
+            --query properties.configuration.ingress.fqdn \
+            --output tsv)/"
+
+          for attempt in $(seq 1 12); do
+            page="$(curl --fail --silent --show-error "$app_url" || true)"
+            if echo "$page" | grep --quiet "Camiseta Supernatural"; then
+              echo "Catálogo legado validado em $app_url"
+              exit 0
+            fi
+            sleep 5
+          done
+
+          echo "::error title=Legacy data validation::Os produtos importados não apareceram em $app_url"
+          exit 1
+
       - name: Inspect revision startup
         if: always()
         run: |
