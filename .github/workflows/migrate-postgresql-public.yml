@@ -1,10 +1,11 @@
-name: Provision and copy public PostgreSQL
+name: Cut over to public PostgreSQL
 
 on:
   push:
     branches:
       - producao
     paths:
+      - Dockerfile
       - .github/workflows/migrate-postgresql-public.yml
   workflow_dispatch:
     inputs:
@@ -19,23 +20,20 @@ permissions:
   id-token: write
 
 concurrency:
-  group: migrate-postgresql-public
+  group: cutover-public-postgresql
   cancel-in-progress: false
 
 jobs:
-  provision-and-copy:
+  cutover-lojatech:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
     env:
       RESOURCE_GROUP: rg-lojatech-prod
-      OLD_SERVER: psql-lojatech-prod
       NEW_SERVER: psql-apps-marcos-prod
       ADMIN_USER: appsadmin
       VNET_NAME: rg-lojatech-prod-vnet
       PRIVATE_ENDPOINT_SUBNET: snet-private-endpoints
       PRIVATE_DNS_ZONE: privatelink.postgres.database.azure.com
-      CONTAINER_ENVIRONMENT: managedEnvironment-rglojatechprod-aa71
-      MIGRATION_JOB: migrate-postgres-data
 
     steps:
       - name: Log in to Azure
@@ -45,48 +43,41 @@ jobs:
           tenant-id: ${{ secrets.LOJATECHSTORE_AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.LOJATECHSTORE_AZURE_SUBSCRIPTION_ID }}
 
-      - name: Provision public PostgreSQL
-        id: provision
+      - name: Configure server, firewall and empty databases
         env:
           ALLOWED_IP: ${{ inputs.allowed_ip || '45.178.251.100' }}
         shell: bash
         run: |
           set -euo pipefail
 
-          if ! [[ "$ALLOWED_IP" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
-            echo "::error title=Invalid IP::Use a single public IPv4 address."
-            exit 1
-          fi
+          old_url="$(az containerapp secret list \
+            --name lojatech-store \
+            --resource-group "$RESOURCE_GROUP" \
+            --show-values \
+            --query "[?name=='database-url'].value | [0]" \
+            --output tsv)"
+          echo "::add-mask::$old_url"
 
-          admin_password="$(openssl rand -hex 24)"
-          echo "::add-mask::$admin_password"
+          readarray -t password_parts < <(OLD_URL="$old_url" python3 - <<'PY'
+          import os
+          from urllib.parse import quote, unquote, urlsplit
 
-          if az postgres flexible-server show \
+          password = unquote(urlsplit(os.environ["OLD_URL"]).password or "")
+          print(password)
+          print(quote(password, safe=""))
+          PY
+          )
+          raw_password="${password_parts[0]}"
+          encoded_password="${password_parts[1]}"
+          echo "::add-mask::$raw_password"
+          echo "::add-mask::$encoded_password"
+
+          az postgres flexible-server update \
             --name "$NEW_SERVER" \
             --resource-group "$RESOURCE_GROUP" \
-            >/dev/null 2>&1; then
-            echo "Reusing the PostgreSQL server created by the previous run."
-            az postgres flexible-server update \
-              --name "$NEW_SERVER" \
-              --resource-group "$RESOURCE_GROUP" \
-              --admin-password "$admin_password" \
-              --yes \
-              >/dev/null
-          else
-            az postgres flexible-server create \
-              --name "$NEW_SERVER" \
-              --resource-group "$RESOURCE_GROUP" \
-              --location canadacentral \
-              --admin-user "$ADMIN_USER" \
-              --admin-password "$admin_password" \
-              --version 16 \
-              --tier Burstable \
-              --sku-name Standard_B1ms \
-              --storage-size 32 \
-              --backup-retention 7 \
-              --public-access "$ALLOWED_IP" \
-              --yes
-          fi
+            --admin-password "$raw_password" \
+            --yes \
+            >/dev/null
 
           az postgres flexible-server firewall-rule delete \
             --name "$NEW_SERVER" \
@@ -99,30 +90,34 @@ jobs:
             --resource-group "$RESOURCE_GROUP" \
             --rule-name dbeaver-home \
             --start-ip-address "$ALLOWED_IP" \
-            --end-ip-address "$ALLOWED_IP"
+            --end-ip-address "$ALLOWED_IP" \
+            >/dev/null
 
           for database in lojatech checklists_prod; do
             if ! az postgres flexible-server db show \
               --server-name "$NEW_SERVER" \
               --resource-group "$RESOURCE_GROUP" \
-              --database-name "$database" \
+              --name "$database" \
               >/dev/null 2>&1; then
               az postgres flexible-server db create \
                 --server-name "$NEW_SERVER" \
                 --resource-group "$RESOURCE_GROUP" \
-                --database-name "$database" \
+                --name "$database" \
                 --charset UTF8 \
-                --collation en_US.utf8
+                --collation en_US.utf8 \
+                >/dev/null
             fi
           done
 
+          new_url="postgresql://${ADMIN_USER}:${encoded_password}@${NEW_SERVER}.postgres.database.azure.com:5432/lojatech?sslmode=require"
+          echo "::add-mask::$new_url"
           az containerapp secret set \
             --name lojatech-store \
             --resource-group "$RESOURCE_GROUP" \
-            --secrets "public-db-admin-pass=$admin_password" \
+            --secrets "database-url=$new_url" \
             >/dev/null
 
-      - name: Create private endpoint for applications
+      - name: Create private endpoint for Container Apps
         shell: bash
         run: |
           set -euo pipefail
@@ -137,7 +132,8 @@ jobs:
               --vnet-name "$VNET_NAME" \
               --name "$PRIVATE_ENDPOINT_SUBNET" \
               --address-prefixes 10.2.0.32/27 \
-              --disable-private-endpoint-network-policies true
+              --disable-private-endpoint-network-policies true \
+              >/dev/null
           fi
 
           az network private-dns zone create \
@@ -159,157 +155,92 @@ jobs:
               >/dev/null
           fi
 
-          server_id="$(az postgres flexible-server show \
-            --name "$NEW_SERVER" \
-            --resource-group "$RESOURCE_GROUP" \
-            --query id \
-            --output tsv)"
-
-          az network private-endpoint create \
+          if ! az network private-endpoint show \
             --name pe-psql-apps-marcos-prod \
             --resource-group "$RESOURCE_GROUP" \
-            --location canadacentral \
-            --vnet-name "$VNET_NAME" \
-            --subnet "$PRIVATE_ENDPOINT_SUBNET" \
-            --private-connection-resource-id "$server_id" \
-            --group-id postgresqlServer \
-            --connection-name pe-psql-apps-marcos-prod-connection \
-            >/dev/null
+            >/dev/null 2>&1; then
+            server_id="$(az postgres flexible-server show \
+              --name "$NEW_SERVER" \
+              --resource-group "$RESOURCE_GROUP" \
+              --query id \
+              --output tsv)"
 
-          zone_id="$(az network private-dns zone show \
-            --resource-group "$RESOURCE_GROUP" \
-            --name "$PRIVATE_DNS_ZONE" \
-            --query id \
-            --output tsv)"
+            az network private-endpoint create \
+              --name pe-psql-apps-marcos-prod \
+              --resource-group "$RESOURCE_GROUP" \
+              --location canadacentral \
+              --vnet-name "$VNET_NAME" \
+              --subnet "$PRIVATE_ENDPOINT_SUBNET" \
+              --private-connection-resource-id "$server_id" \
+              --group-id postgresqlServer \
+              --connection-name pe-psql-apps-marcos-prod-connection \
+              >/dev/null
+          fi
 
-          az network private-endpoint dns-zone-group create \
+          if ! az network private-endpoint dns-zone-group show \
             --resource-group "$RESOURCE_GROUP" \
             --endpoint-name pe-psql-apps-marcos-prod \
             --name postgres-zone-group \
-            --private-dns-zone "$zone_id" \
-            --zone-name postgres \
-            >/dev/null
+            >/dev/null 2>&1; then
+            zone_id="$(az network private-dns zone show \
+              --resource-group "$RESOURCE_GROUP" \
+              --name "$PRIVATE_DNS_ZONE" \
+              --query id \
+              --output tsv)"
 
-      - name: Copy both databases
+            az network private-endpoint dns-zone-group create \
+              --resource-group "$RESOURCE_GROUP" \
+              --endpoint-name pe-psql-apps-marcos-prod \
+              --name postgres-zone-group \
+              --private-dns-zone "$zone_id" \
+              --zone-name postgres \
+              >/dev/null
+          fi
+
+      - name: Restart LojaTech with the new empty database
         shell: bash
         run: |
           set -euo pipefail
           az extension add --name containerapp --upgrade --allow-preview true
 
-          NEW_ADMIN_PASSWORD="$(az containerapp secret list \
+          az containerapp update \
             --name lojatech-store \
             --resource-group "$RESOURCE_GROUP" \
-            --show-values \
-            --query "[?name=='public-db-admin-pass'].value | [0]" \
-            --output tsv)"
-
-          old_loja_url="$(az containerapp secret list \
-            --name lojatech-store \
-            --resource-group "$RESOURCE_GROUP" \
-            --show-values \
-            --query "[?name=='database-url'].value | [0]" \
-            --output tsv)"
-
-          if [ -z "$old_loja_url" ]; then
-            echo "::error title=Missing source URL::The lojatech-store database-url secret was not found."
-            exit 1
-          fi
-
-          echo "::add-mask::$old_loja_url"
-          echo "::add-mask::$NEW_ADMIN_PASSWORD"
-
-          environment_id="$(az containerapp env show \
-            --name "$CONTAINER_ENVIRONMENT" \
-            --resource-group "$RESOURCE_GROUP" \
-            --query id \
-            --output tsv)"
-
-          az containerapp job delete \
-            --name "$MIGRATION_JOB" \
-            --resource-group "$RESOURCE_GROUP" \
-            --yes \
-            >/dev/null 2>&1 || true
-
-          migration_script='
-            set -eu
-            old_prefix="${OLD_LOJA_URL%%/lojatech*}"
-            old_check="${old_prefix}/checklists_prod?sslmode=require"
-            new_prefix="postgresql://${NEW_ADMIN_USER}:${NEW_ADMIN_PASSWORD}@${NEW_SERVER_FQDN}:5432"
-            new_loja="${new_prefix}/lojatech?sslmode=require"
-            new_check="${new_prefix}/checklists_prod?sslmode=require"
-
-            echo "Copying lojatech..."
-            pg_dump "$OLD_LOJA_URL" --format=custom --no-owner --no-privileges --file=/tmp/lojatech.dump
-            pg_restore --dbname="$new_loja" --no-owner --no-privileges --exit-on-error /tmp/lojatech.dump
-
-            echo "Copying checklists_prod..."
-            pg_dump "$old_check" --format=custom --no-owner --no-privileges --file=/tmp/checklists.dump
-            pg_restore --dbname="$new_check" --no-owner --no-privileges --exit-on-error /tmp/checklists.dump
-
-            echo "Validating..."
-            psql "$new_loja" -v ON_ERROR_STOP=1 -c "SELECT current_database(), count(*) AS tables FROM information_schema.tables WHERE table_schema = '\''public'\'';"
-            psql "$new_check" -v ON_ERROR_STOP=1 -c "SELECT current_database(), count(*) AS tables FROM information_schema.tables WHERE table_schema = '\''public'\'';"
-          '
-
-          az containerapp job create \
-            --name "$MIGRATION_JOB" \
-            --resource-group "$RESOURCE_GROUP" \
-            --environment "$environment_id" \
-            --trigger-type Manual \
-            --replica-timeout 1800 \
-            --replica-retry-limit 0 \
-            --image postgres:16 \
-            --cpu 0.5 \
-            --memory 1Gi \
-            --secrets \
-              "old-loja-url=$old_loja_url" \
-              "new-admin-pass=$NEW_ADMIN_PASSWORD" \
-            --env-vars \
-              "OLD_LOJA_URL=secretref:old-loja-url" \
-              "NEW_ADMIN_PASSWORD=secretref:new-admin-pass" \
-              "NEW_ADMIN_USER=$ADMIN_USER" \
-              "NEW_SERVER_FQDN=$NEW_SERVER.postgres.database.azure.com" \
-            --command /bin/sh \
-            --args -c "$migration_script" \
+            --set-env-vars \
+              "DATABASE_URL=secretref:database-url" \
+              "IMPORT_LEGACY_SQLITE=false" \
             >/dev/null
 
-          execution_name="$(az containerapp job start \
-            --name "$MIGRATION_JOB" \
+          fqdn="$(az containerapp show \
+            --name lojatech-store \
             --resource-group "$RESOURCE_GROUP" \
-            --query name \
+            --query properties.configuration.ingress.fqdn \
             --output tsv)"
 
-          for attempt in $(seq 1 90); do
-            status="$(az containerapp job execution list \
-              --name "$MIGRATION_JOB" \
-              --resource-group "$RESOURCE_GROUP" \
-              --query "[?name=='$execution_name'].properties.status | [0]" \
-              --output tsv)"
-            echo "Migration status: $status"
-
-            if [ "$status" = "Succeeded" ]; then
+          for attempt in $(seq 1 36); do
+            if curl --fail --silent --show-error \
+              --connect-timeout 5 \
+              --max-time 15 \
+              "https://$fqdn/" >/dev/null; then
+              echo "LojaTech is healthy on the new PostgreSQL server."
               exit 0
-            fi
-            if [ "$status" = "Failed" ]; then
-              echo "::error title=Database copy failed::Container Apps migration job failed."
-              exit 1
             fi
             sleep 10
           done
 
-          echo "::error title=Database copy timeout::Migration did not finish within 15 minutes."
+          echo "::error title=LojaTech cutover failed::The application did not become healthy."
           exit 1
 
-      - name: Report target
+      - name: Report connection target
         if: always()
         shell: bash
         run: |
-          server="$(az postgres flexible-server show \
+          state="$(az postgres flexible-server show \
             --name "$NEW_SERVER" \
             --resource-group "$RESOURCE_GROUP" \
-            --query "{name:name,state:state,version:version,sku:sku.name,publicAccess:network.publicNetworkAccess,fqdn:fullyQualifiedDomainName}" \
+            --query "{fqdn:fullyQualifiedDomainName,state:state,publicAccess:network.publicNetworkAccess,sku:sku.name}" \
             --output json 2>&1 || true)"
-          server="${server//'%'/'%25'}"
-          server="${server//$'\r'/'%0D'}"
-          server="${server//$'\n'/'%0A'}"
-          echo "::notice title=New PostgreSQL::$server"
+          state="${state//'%'/'%25'}"
+          state="${state//$'\r'/'%0D'}"
+          state="${state//$'\n'/'%0A'}"
+          echo "::notice title=DBeaver PostgreSQL::$state"
