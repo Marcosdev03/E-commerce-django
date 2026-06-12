@@ -105,6 +105,14 @@ jobs:
       - name: Inspect revision startup
         if: always()
         run: |
+          escape_annotation() {
+            local value="$1"
+            value="${value//'%'/'%25'}"
+            value="${value//$'\r'/'%0D'}"
+            value="${value//$'\n'/'%0A'}"
+            printf '%s' "$value"
+          }
+
           revisions="$(az containerapp revision list \
             --name lojatech-store \
             --resource-group rg-lojatech-prod \
@@ -117,19 +125,29 @@ jobs:
             --query "sort_by(@, &properties.createdTime)[-1].name" \
             --output tsv)"
 
-          system_logs="$(az containerapp logs show \
+          system_logs="$(timeout 30s az containerapp logs show \
             --name lojatech-store \
             --resource-group rg-lojatech-prod \
             --revision "$latest_revision" \
             --type system \
             --tail 100 2>&1 || true)"
 
-          console_logs="$(az containerapp logs show \
+          console_logs="$(timeout 30s az containerapp logs show \
             --name lojatech-store \
             --resource-group rg-lojatech-prod \
             --revision "$latest_revision" \
             --type console \
             --tail 100 2>&1 || true)"
+
+          latest_state="$(az containerapp revision show \
+            --name lojatech-store \
+            --resource-group rg-lojatech-prod \
+            --revision "$latest_revision" \
+            --query "{name:name,health:properties.healthState,running:properties.runningState,provisioning:properties.provisioningState,error:properties.provisioningError}" \
+            --output json)"
+
+          echo "::notice title=Latest Azure revision::$(escape_annotation "$latest_state")"
+          echo "::warning title=Container console::$(escape_annotation "$(echo "$console_logs" | tail -n 30)")"
 
           {
             echo "## Azure Container Apps"
