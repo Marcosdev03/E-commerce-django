@@ -200,6 +200,7 @@ jobs:
           fi
 
       - name: Create Checklist database user
+        if: ${{ false }}
         env:
           SHARED_SUBSCRIPTION_ID: ${{ secrets.LOJATECHSTORE_AZURE_SUBSCRIPTION_ID }}
           SHARED_TENANT_ID: ${{ secrets.LOJATECHSTORE_AZURE_TENANT_ID }}
@@ -263,7 +264,43 @@ jobs:
           GRANT ALL ON SCHEMA public TO checklists_app;
           SQL
 
+      - name: Remove private DNS and allow Azure applications
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          az network private-endpoint delete \
+            --name pe-psql-apps-marcos-prod \
+            --resource-group "$RESOURCE_GROUP" \
+            >/dev/null 2>&1 || true
+          az network private-dns link vnet delete \
+            --resource-group "$RESOURCE_GROUP" \
+            --zone-name "$PRIVATE_DNS_ZONE" \
+            --name apps-vnet-link \
+            --yes \
+            >/dev/null 2>&1 || true
+          az network private-dns zone delete \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$PRIVATE_DNS_ZONE" \
+            --yes \
+            >/dev/null 2>&1 || true
+
+          az postgres flexible-server firewall-rule delete \
+            --server-name "$NEW_SERVER" \
+            --resource-group "$RESOURCE_GROUP" \
+            --name allow-azure-services \
+            --yes \
+            >/dev/null 2>&1 || true
+          az postgres flexible-server firewall-rule create \
+            --server-name "$NEW_SERVER" \
+            --resource-group "$RESOURCE_GROUP" \
+            --name allow-azure-services \
+            --start-ip-address 0.0.0.0 \
+            --end-ip-address 0.0.0.0 \
+            >/dev/null
+
       - name: Delete old PostgreSQL server
+        if: ${{ false }}
         shell: bash
         run: |
           set -euo pipefail
