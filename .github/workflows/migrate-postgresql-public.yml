@@ -199,6 +199,70 @@ jobs:
               >/dev/null
           fi
 
+      - name: Create Checklist database user
+        env:
+          SHARED_SUBSCRIPTION_ID: ${{ secrets.LOJATECHSTORE_AZURE_SUBSCRIPTION_ID }}
+          SHARED_TENANT_ID: ${{ secrets.LOJATECHSTORE_AZURE_TENANT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          admin_url="$(az containerapp secret list \
+            --name lojatech-store \
+            --resource-group "$RESOURCE_GROUP" \
+            --show-values \
+            --query "[?name=='database-url'].value | [0]" \
+            --output tsv)"
+          echo "::add-mask::$admin_url"
+
+          checklist_password="Aa1!$(printf '%s' \
+            "${SHARED_SUBSCRIPTION_ID}:${SHARED_TENANT_ID}:checklists-2026" \
+            | sha256sum | cut -c1-40)"
+          echo "::add-mask::$checklist_password"
+
+          checklist_admin_url="$(ADMIN_URL="$admin_url" python3 - <<'PY'
+          import os
+          from urllib.parse import urlsplit, urlunsplit
+
+          url = urlsplit(os.environ["ADMIN_URL"])
+          print(urlunsplit((url.scheme, url.netloc, "/checklists_prod", url.query, url.fragment)))
+          PY
+          )"
+          echo "::add-mask::$checklist_admin_url"
+
+          runner_ip="$(curl --fail --silent https://api.ipify.org)"
+          az postgres flexible-server firewall-rule delete \
+            --server-name "$NEW_SERVER" \
+            --resource-group "$RESOURCE_GROUP" \
+            --name github-cutover \
+            --yes \
+            >/dev/null 2>&1 || true
+          az postgres flexible-server firewall-rule create \
+            --server-name "$NEW_SERVER" \
+            --resource-group "$RESOURCE_GROUP" \
+            --name github-cutover \
+            --start-ip-address "$runner_ip" \
+            --end-ip-address "$runner_ip" \
+            >/dev/null
+          trap 'az postgres flexible-server firewall-rule delete --server-name "$NEW_SERVER" --resource-group "$RESOURCE_GROUP" --name github-cutover --yes >/dev/null 2>&1 || true' EXIT
+
+          psql "$admin_url" --set ON_ERROR_STOP=1 <<SQL
+          DO \$\$
+          BEGIN
+            IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'checklists_app') THEN
+              CREATE ROLE checklists_app LOGIN;
+            END IF;
+          END
+          \$\$;
+          ALTER ROLE checklists_app PASSWORD '$checklist_password';
+          GRANT ALL PRIVILEGES ON DATABASE checklists_prod TO checklists_app;
+          SQL
+
+          psql "$checklist_admin_url" --set ON_ERROR_STOP=1 <<SQL
+          ALTER SCHEMA public OWNER TO checklists_app;
+          GRANT ALL ON SCHEMA public TO checklists_app;
+          SQL
+
       - name: Delete old PostgreSQL server
         shell: bash
         run: |
