@@ -49,6 +49,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          trap 'echo "::error title=Configure PostgreSQL failed::Command: $BASH_COMMAND (line $LINENO)"' ERR
 
           old_url="$(az containerapp secret list \
             --name lojatech-store \
@@ -76,7 +77,6 @@ jobs:
             --name "$NEW_SERVER" \
             --resource-group "$RESOURCE_GROUP" \
             --admin-password "$raw_password" \
-            --yes \
             >/dev/null
 
           az postgres flexible-server firewall-rule delete \
@@ -121,6 +121,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          trap 'echo "::error title=Private endpoint failed::Command: $BASH_COMMAND (line $LINENO)"' ERR
 
           if ! az network vnet subnet show \
             --resource-group "$RESOURCE_GROUP" \
@@ -201,6 +202,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          trap 'echo "::error title=LojaTech restart failed::Command: $BASH_COMMAND (line $LINENO)"' ERR
           az extension add --name containerapp --upgrade --allow-preview true
 
           az containerapp update \
