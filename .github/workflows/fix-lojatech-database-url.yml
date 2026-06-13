@@ -1,0 +1,97 @@
+name: Fix LojaTech database URL
+
+on:
+  push:
+    branches: [ producao ]
+    paths:
+      - '.github/workflows/fix-lojatech-database-url.yml'
+  workflow_dispatch:
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.LOJATECHSTORE_AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.LOJATECHSTORE_AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.LOJATECHSTORE_AZURE_SUBSCRIPTION_ID }}
+
+      - name: Reset database password and update Container App secret
+        run: |
+          set -euo pipefail
+
+          resource_group="rg-lojatech-prod"
+          server_name="psql-apps-marcos-prod"
+          app_name="lojatech-store"
+          db_user="appsadmin"
+          db_name="lojatech"
+          db_host="${server_name}.postgres.database.azure.com"
+
+          db_password="$(LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 40)"
+          database_url="postgresql://${db_user}:${db_password}@${db_host}:5432/${db_name}?sslmode=require"
+
+          az postgres flexible-server update \
+            --resource-group "$resource_group" \
+            --name "$server_name" \
+            --admin-password "$db_password" \
+            --output none
+
+          az containerapp secret set \
+            --resource-group "$resource_group" \
+            --name "$app_name" \
+            --secrets database-url="$database_url" \
+            --output none
+
+          az containerapp update \
+            --resource-group "$resource_group" \
+            --name "$app_name" \
+            --set-env-vars \
+              DATABASE_URL=secretref:database-url \
+              DATABASE_SSL_REQUIRE=True \
+            --output none
+
+          latest_revision="$(az containerapp revision list \
+            --name "$app_name" \
+            --resource-group "$resource_group" \
+            --query "sort_by(@, &properties.createdTime)[-1].name" \
+            --output tsv)"
+
+          echo "Latest revision: $latest_revision"
+
+          for attempt in $(seq 1 30); do
+            state="$(az containerapp revision show \
+              --name "$app_name" \
+              --resource-group "$resource_group" \
+              --revision "$latest_revision" \
+              --query "[properties.healthState,properties.runningState,properties.provisioningState,properties.provisioningError]" \
+              --output tsv)"
+
+            echo "Revision state: $state"
+            health="$(echo "$state" | cut -f1)"
+            running="$(echo "$state" | cut -f2)"
+            provisioning="$(echo "$state" | cut -f3)"
+
+            if [ "$health" = "Healthy" ] && [ "$running" = "Running" ]; then
+              az containerapp ingress traffic set \
+                --name "$app_name" \
+                --resource-group "$resource_group" \
+                --revision-weight "$latest_revision=100"
+              exit 0
+            fi
+
+            if [ "$running" = "Failed" ] || [ "$provisioning" = "Failed" ]; then
+              echo "::error title=Revision failed::$state"
+              exit 1
+            fi
+
+            sleep 10
+          done
+
+          echo "::error title=Revision timeout::A LojaTech nao ficou saudavel depois de atualizar o banco."
+          exit 1
