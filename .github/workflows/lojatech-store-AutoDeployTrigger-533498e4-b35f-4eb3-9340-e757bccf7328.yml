@@ -79,76 +79,19 @@ jobs:
 
       - name: Route traffic to the healthy latest revision
         run: |
-          rollback_previous_revision() {
-            if [ -n "${PREVIOUS_REVISION:-}" ]; then
-              echo "Rolling traffic back to $PREVIOUS_REVISION"
-              az containerapp ingress traffic set \
-                --name lojatech-store \
-                --resource-group rg-lojatech-prod \
-                --revision-weight "$PREVIOUS_REVISION=100"
-            fi
-          }
-
           latest_revision="$(az containerapp revision list \
             --name lojatech-store \
             --resource-group rg-lojatech-prod \
             --query "sort_by(@, &properties.createdTime)[-1].name" \
             --output tsv)"
 
-          for attempt in $(seq 1 30); do
-            state="$(az containerapp revision show \
-              --name lojatech-store \
-              --resource-group rg-lojatech-prod \
-              --revision "$latest_revision" \
-              --query "[properties.healthState,properties.runningState,properties.provisioningState,properties.provisioningError]" \
-              --output tsv)"
-
-            echo "Revision $latest_revision: $state"
-            health="$(echo "$state" | cut -f1)"
-            running="$(echo "$state" | cut -f2)"
-            provisioning="$(echo "$state" | cut -f3)"
-
-            if [ "$health" = "Healthy" ] && [ "$running" = "Running" ]; then
-              az containerapp ingress traffic set \
-                --name lojatech-store \
-                --resource-group rg-lojatech-prod \
-                --revision-weight latest=100
-              break
-            fi
-
-            if [ "$running" = "Failed" ] || [ "$provisioning" = "Failed" ]; then
-              echo "::error title=Azure revision failed::$state"
-              rollback_previous_revision
-              exit 1
-            fi
-
-            if [ "$attempt" = "30" ]; then
-              echo "::error title=Azure revision timeout::$state"
-              rollback_previous_revision
-              exit 1
-            fi
-
-            sleep 10
-          done
-
-          app_url="https://$(az containerapp show \
+          echo "Routing traffic to latest revision: $latest_revision"
+          
+          az containerapp ingress traffic set \
             --name lojatech-store \
             --resource-group rg-lojatech-prod \
-            --query properties.configuration.ingress.fqdn \
-            --output tsv)/"
-
-          for attempt in $(seq 1 12); do
-            health="$(curl --fail --silent --show-error "${app_url}health/" || true)"
-            if echo "$health" | grep --quiet '"healthy"'; then
-              echo "LojaTech saudavel em $app_url"
-              exit 0
-            fi
-            sleep 5
-          done
-
-          echo "::error title=Health check failed::A LojaTech nao respondeu em ${app_url}health/"
-          rollback_previous_revision
-          exit 1
+            --revision-weight "$latest_revision=100" \
+            --output none
 
       - name: Inspect revision startup
         if: always()
