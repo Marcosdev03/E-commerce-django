@@ -26,10 +26,38 @@ jobs:
         run: |
           set -euo pipefail
 
+          az containerapp revision set-mode \
+            --name lojatech-store \
+            --resource-group rg-lojatech-prod \
+            --mode multiple
+
+          target_revision="$(az containerapp revision list \
+            --name lojatech-store \
+            --resource-group rg-lojatech-prod \
+            --query "[?properties.healthState == 'Healthy' && properties.runningState == 'Running'] | sort_by(@, &properties.createdTime)[-1].name" \
+            --output tsv)"
+
+          if [ -z "$target_revision" ]; then
+            echo "::error title=No healthy revision::Nenhuma revisao Healthy/Running encontrada."
+            az containerapp revision list \
+              --name lojatech-store \
+              --resource-group rg-lojatech-prod \
+              --query "[].{name:name,health:properties.healthState,running:properties.runningState,traffic:properties.trafficWeight,active:properties.active}" \
+              --output table
+            exit 1
+          fi
+
+          echo "Routing traffic to healthy revision: $target_revision"
+
+          az containerapp revision activate \
+            --name lojatech-store \
+            --resource-group rg-lojatech-prod \
+            --revision "$target_revision" || true
+
           az containerapp ingress traffic set \
             --name lojatech-store \
             --resource-group rg-lojatech-prod \
-            --revision-weight lojatech-store--db-1781312565=100
+            --revision-weight "$target_revision=100"
 
           az containerapp revision list \
             --name lojatech-store \
