@@ -199,6 +199,20 @@ jobs:
               >/dev/null
           fi
 
+      - name: Delete old PostgreSQL server
+        shell: bash
+        run: |
+          set -euo pipefail
+          if az postgres flexible-server show \
+            --name psql-lojatech-prod \
+            --resource-group "$RESOURCE_GROUP" \
+            >/dev/null 2>&1; then
+            az postgres flexible-server delete \
+              --name psql-lojatech-prod \
+              --resource-group "$RESOURCE_GROUP" \
+              --yes
+          fi
+
       - name: Restart LojaTech with the new empty database
         shell: bash
         run: |
