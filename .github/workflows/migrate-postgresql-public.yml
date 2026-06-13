@@ -73,12 +73,6 @@ jobs:
           echo "::add-mask::$raw_password"
           echo "::add-mask::$encoded_password"
 
-          az postgres flexible-server update \
-            --name "$NEW_SERVER" \
-            --resource-group "$RESOURCE_GROUP" \
-            --admin-password "$raw_password" \
-            >/dev/null
-
           az postgres flexible-server firewall-rule delete \
             --server-name "$NEW_SERVER" \
             --resource-group "$RESOURCE_GROUP" \
@@ -137,10 +131,15 @@ jobs:
               >/dev/null
           fi
 
-          az network private-dns zone create \
+          if ! az network private-dns zone show \
             --resource-group "$RESOURCE_GROUP" \
             --name "$PRIVATE_DNS_ZONE" \
-            >/dev/null
+            >/dev/null 2>&1; then
+            az network private-dns zone create \
+              --resource-group "$RESOURCE_GROUP" \
+              --name "$PRIVATE_DNS_ZONE" \
+              >/dev/null
+          fi
 
           if ! az network private-dns link vnet show \
             --resource-group "$RESOURCE_GROUP" \
