@@ -205,12 +205,14 @@ jobs:
           trap 'echo "::error title=LojaTech restart failed::Command: $BASH_COMMAND (line $LINENO)"' ERR
           az extension add --name containerapp --upgrade --allow-preview true
 
+          cutover_id="$(date +%s)"
           az containerapp update \
             --name lojatech-store \
             --resource-group "$RESOURCE_GROUP" \
             --set-env-vars \
               "DATABASE_URL=secretref:database-url" \
               "IMPORT_LEGACY_SQLITE=false" \
+              "DATABASE_CUTOVER_ID=$cutover_id" \
             >/dev/null
 
           fqdn="$(az containerapp show \
@@ -219,10 +221,30 @@ jobs:
             --query properties.configuration.ingress.fqdn \
             --output tsv)"
 
-          for attempt in $(seq 1 36); do
+          latest_revision="$(az containerapp revision list \
+            --name lojatech-store \
+            --resource-group "$RESOURCE_GROUP" \
+            --query "sort_by(@, &properties.createdTime)[-1].name" \
+            --output tsv)"
+
+          for attempt in $(seq 1 24); do
+            state="$(az containerapp revision show \
+              --name lojatech-store \
+              --resource-group "$RESOURCE_GROUP" \
+              --revision "$latest_revision" \
+              --query "[properties.healthState,properties.runningState,properties.provisioningState]" \
+              --output tsv)"
+            echo "Revision $latest_revision: $state"
+
+            running="$(echo "$state" | cut -f2)"
+            provisioning="$(echo "$state" | cut -f3)"
+            if [ "$running" = "Failed" ] || [ "$provisioning" = "Failed" ]; then
+              break
+            fi
+
             if curl --fail --silent --show-error \
               --connect-timeout 5 \
-              --max-time 15 \
+              --max-time 10 \
               "https://$fqdn/" >/dev/null; then
               echo "LojaTech is healthy on the new PostgreSQL server."
               exit 0
@@ -230,6 +252,17 @@ jobs:
             sleep 10
           done
 
+          console_logs="$(timeout 30s az containerapp logs show \
+            --name lojatech-store \
+            --resource-group "$RESOURCE_GROUP" \
+            --revision "$latest_revision" \
+            --type console \
+            --tail 100 2>&1 || true)"
+          echo "$console_logs"
+          escaped_logs="${console_logs//'%'/'%25'}"
+          escaped_logs="${escaped_logs//$'\r'/'%0D'}"
+          escaped_logs="${escaped_logs//$'\n'/'%0A'}"
+          echo "::error title=LojaTech container logs::$escaped_logs"
           echo "::error title=LojaTech cutover failed::The application did not become healthy."
           exit 1
 

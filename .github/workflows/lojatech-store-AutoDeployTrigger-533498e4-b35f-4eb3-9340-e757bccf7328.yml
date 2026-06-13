@@ -7,8 +7,17 @@ on:
     branches: 
       [ producao ]
     paths:
-    - '**'
-    - '.github/workflows/lojatech-store-AutoDeployTrigger-533498e4-b35f-4eb3-9340-e757bccf7328.yml'
+    - 'Dockerfile'
+    - 'entrypoint.sh'
+    - 'requirements.txt'
+    - 'manage.py'
+    - 'loja/**'
+    - 'pedido/**'
+    - 'perfil/**'
+    - 'produto/**'
+    - 'endereco/**'
+    - 'carrinho_de_compras/**'
+    - 'templates/**'
 
   # Allow manual trigger 
   workflow_dispatch:      
