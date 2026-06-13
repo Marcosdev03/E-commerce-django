@@ -55,6 +55,17 @@ jobs:
           tenant-id: ${{ secrets.LOJATECHSTORE_AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.LOJATECHSTORE_AZURE_SUBSCRIPTION_ID }}
 
+      - name: Capture current production revision
+        run: |
+          previous_revision="$(az containerapp revision list \
+            --name lojatech-store \
+            --resource-group rg-lojatech-prod \
+            --query "[?properties.trafficWeight > \`0\`] | sort_by(@, &properties.createdTime)[-1].name" \
+            --output tsv)"
+
+          echo "PREVIOUS_REVISION=$previous_revision" >> "$GITHUB_ENV"
+          echo "Previous production revision: $previous_revision"
+
       - name: Build and push container image to registry
         uses: azure/container-apps-deploy-action@v2
         with:
@@ -68,6 +79,16 @@ jobs:
 
       - name: Route traffic to the healthy latest revision
         run: |
+          rollback_previous_revision() {
+            if [ -n "${PREVIOUS_REVISION:-}" ]; then
+              echo "Rolling traffic back to $PREVIOUS_REVISION"
+              az containerapp ingress traffic set \
+                --name lojatech-store \
+                --resource-group rg-lojatech-prod \
+                --revision-weight "$PREVIOUS_REVISION=100"
+            fi
+          }
+
           latest_revision="$(az containerapp revision list \
             --name lojatech-store \
             --resource-group rg-lojatech-prod \
@@ -97,11 +118,13 @@ jobs:
 
             if [ "$running" = "Failed" ] || [ "$provisioning" = "Failed" ]; then
               echo "::error title=Azure revision failed::$state"
+              rollback_previous_revision
               exit 1
             fi
 
             if [ "$attempt" = "30" ]; then
               echo "::error title=Azure revision timeout::$state"
+              rollback_previous_revision
               exit 1
             fi
 
@@ -124,6 +147,7 @@ jobs:
           done
 
           echo "::error title=Health check failed::A LojaTech nao respondeu em ${app_url}health/"
+          rollback_previous_revision
           exit 1
 
       - name: Inspect revision startup

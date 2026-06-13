@@ -1,0 +1,38 @@
+name: Rollback LojaTech traffic
+
+on:
+  push:
+    branches: [ producao ]
+    paths:
+      - '.github/workflows/rollback-lojatech.yml'
+  workflow_dispatch:
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.LOJATECHSTORE_AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.LOJATECHSTORE_AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.LOJATECHSTORE_AZURE_SUBSCRIPTION_ID }}
+
+      - name: Route traffic back to known healthy revision
+        run: |
+          set -euo pipefail
+
+          az containerapp ingress traffic set \
+            --name lojatech-store \
+            --resource-group rg-lojatech-prod \
+            --revision-weight lojatech-store--db-1781312565=100
+
+          az containerapp revision list \
+            --name lojatech-store \
+            --resource-group rg-lojatech-prod \
+            --query "[].{name:name,health:properties.healthState,running:properties.runningState,traffic:properties.trafficWeight,active:properties.active}" \
+            --output table
