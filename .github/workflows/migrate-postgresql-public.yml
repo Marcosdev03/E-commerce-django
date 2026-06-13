@@ -21,7 +21,7 @@ permissions:
 
 concurrency:
   group: cutover-public-postgresql
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   cutover-lojatech:
@@ -44,6 +44,7 @@ jobs:
           subscription-id: ${{ secrets.LOJATECHSTORE_AZURE_SUBSCRIPTION_ID }}
 
       - name: Configure server, firewall and empty databases
+        if: ${{ false }}
         env:
           ALLOWED_IP: ${{ inputs.allowed_ip || '45.178.251.100' }}
         shell: bash
@@ -112,6 +113,7 @@ jobs:
             >/dev/null
 
       - name: Create private endpoint for Container Apps
+        if: ${{ false }}
         shell: bash
         run: |
           set -euo pipefail
@@ -204,14 +206,16 @@ jobs:
           trap 'echo "::error title=LojaTech restart failed::Command: $BASH_COMMAND (line $LINENO)"' ERR
           az extension add --name containerapp --upgrade --allow-preview true
 
-          cutover_id="$(date +%s)"
+          revision_suffix="db-$(date +%s)"
           az containerapp update \
             --name lojatech-store \
             --resource-group "$RESOURCE_GROUP" \
+            --revision-suffix "$revision_suffix" \
+            --no-wait \
             --set-env-vars \
               "DATABASE_URL=secretref:database-url" \
               "IMPORT_LEGACY_SQLITE=false" \
-              "DATABASE_CUTOVER_ID=$cutover_id" \
+              "DATABASE_CUTOVER_ID=$revision_suffix" \
             >/dev/null
 
           fqdn="$(az containerapp show \
@@ -220,13 +224,19 @@ jobs:
             --query properties.configuration.ingress.fqdn \
             --output tsv)"
 
-          latest_revision="$(az containerapp revision list \
-            --name lojatech-store \
-            --resource-group "$RESOURCE_GROUP" \
-            --query "sort_by(@, &properties.createdTime)[-1].name" \
-            --output tsv)"
+          latest_revision="lojatech-store--$revision_suffix"
 
           for attempt in $(seq 1 24); do
+            if ! az containerapp revision show \
+              --name lojatech-store \
+              --resource-group "$RESOURCE_GROUP" \
+              --revision "$latest_revision" \
+              >/dev/null 2>&1; then
+              echo "Waiting for revision $latest_revision to be created."
+              sleep 5
+              continue
+            fi
+
             state="$(az containerapp revision show \
               --name lojatech-store \
               --resource-group "$RESOURCE_GROUP" \
