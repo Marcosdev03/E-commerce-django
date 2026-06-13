@@ -16,13 +16,19 @@ Including another URLconf
 """
 from django.conf import settings
 from django.contrib import admin
+from django.http import JsonResponse
 from django.urls import include, path
 from django.urls import re_path
 from django.conf.urls.static import static
 from django.views.static import serve
 
-urlpatterns = [
 
+def health(request):
+    return JsonResponse({"status": "healthy"})
+
+
+urlpatterns = [
+    path('health/', health, name='health'),
     path('admin/', admin.site.urls),
     path('perfil/', include('perfil.urls')),
     path('pedido/', include('pedido.urls')),

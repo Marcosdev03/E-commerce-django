@@ -8,14 +8,17 @@
         <h3 class="mb-3">Pedido #{{ pedido.id }}</h3>
         <p>Status: <strong>{{ pedido.get_status_display }}</strong></p>
         {% if pedido.status == 'C' or pedido.status == 'P' %}
-        <a class="btn btn-success mb-3" href="{% url 'pedido:fechar-pedido' pedido.id %}">
-            <i class="fas fa-check-circle"></i>
-            {% if pedido.status == 'C' %}
-            Enviar pedido
-            {% else %}
-            Finalizar compra
-            {% endif %}
-        </a>
+        <form method="post" action="{% url 'pedido:fechar-pedido' pedido.id %}">
+            {% csrf_token %}
+            <button class="btn btn-success mb-3" type="submit">
+                <i class="fas fa-check-circle"></i>
+                {% if pedido.status == 'C' %}
+                Enviar pedido
+                {% else %}
+                Finalizar compra
+                {% endif %}
+            </button>
+        </form>
         {% endif %}
 
         <div class="table-responsive">

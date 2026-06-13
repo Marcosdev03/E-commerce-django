@@ -83,7 +83,7 @@ class FecharPedido(LoginRequiredMixin, View):
     URL: /pedido/fecharpedido/<int:pedido_id>/
     """
 
-    def get(self, *args, **kwargs):
+    def post(self, *args, **kwargs):
         pedido_id = kwargs.get('pedido_id')
         pedido = get_object_or_404(Pedido, id=pedido_id, usuario=self.request.user)
 

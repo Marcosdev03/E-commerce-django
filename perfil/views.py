@@ -133,7 +133,7 @@ class Logout(View):
     URL: /perfil/logout/
     """
 
-    def get(self, *args, **kwargs):
+    def post(self, *args, **kwargs):
         if self.request.user.is_authenticated:
             logout(self.request)
             messages.success(self.request, 'Você saiu da sua conta.')

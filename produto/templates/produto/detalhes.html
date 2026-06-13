@@ -36,7 +36,9 @@
                         {% endif %}
                     </p>
 
-                    <form action="{% url 'carrinho_de_compras:adicionaraocarrinho' %}" id="form-add-to-cart">
+                    <form action="{% url 'carrinho_de_compras:adicionaraocarrinho' %}" method="post"
+                        id="form-add-to-cart">
+                        {% csrf_token %}
 
                         <div class="form-group">
                             <select id="select-variacoes" name="vid" class="form-control form-control-lg">

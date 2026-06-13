@@ -65,14 +65,17 @@
                 </a>
                 {% if pedido.status == 'C' or pedido.status == 'P' %}
                 <div class="small text-warning mt-2">Aguardando finalizacao.</div>
-                <a class="btn btn-sm btn-success mt-2" href="{% url 'pedido:fechar-pedido' pedido.id %}">
-                    <i class="fas fa-check-circle"></i>
-                    {% if pedido.status == 'C' %}
-                    Enviar pedido
-                    {% else %}
-                    Finalizar compra
-                    {% endif %}
-                </a>
+                <form method="post" action="{% url 'pedido:fechar-pedido' pedido.id %}">
+                    {% csrf_token %}
+                    <button class="btn btn-sm btn-success mt-2" type="submit">
+                        <i class="fas fa-check-circle"></i>
+                        {% if pedido.status == 'C' %}
+                        Enviar pedido
+                        {% else %}
+                        Finalizar compra
+                        {% endif %}
+                    </button>
+                </form>
                 {% endif %}
             </div>
         </div>

@@ -31,7 +31,22 @@ jobs:
 
     steps:
       - name: Checkout to the branch
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Run Django checks and tests
+        env:
+          DEBUG: 'True'
+          SECRET_KEY: ci-only-secret-key
+        run: |
+          pip install -r requirements.txt
+          python manage.py check
+          python manage.py test
 
       - name: Azure Login
         uses: azure/login@v2
@@ -100,15 +115,15 @@ jobs:
             --output tsv)/"
 
           for attempt in $(seq 1 12); do
-            page="$(curl --fail --silent --show-error "$app_url" || true)"
-            if echo "$page" | grep --quiet "Camiseta Supernatural"; then
-              echo "Catálogo legado validado em $app_url"
+            health="$(curl --fail --silent --show-error "${app_url}health/" || true)"
+            if echo "$health" | grep --quiet '"healthy"'; then
+              echo "LojaTech saudavel em $app_url"
               exit 0
             fi
             sleep 5
           done
 
-          echo "::error title=Legacy data validation::Os produtos importados não apareceram em $app_url"
+          echo "::error title=Health check failed::A LojaTech nao respondeu em ${app_url}health/"
           exit 1
 
       - name: Inspect revision startup

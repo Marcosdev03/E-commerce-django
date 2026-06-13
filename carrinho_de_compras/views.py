@@ -14,7 +14,7 @@ def _obter_preco_total_item(item):
 
 
 class Carrinho(View):
-    def get(self, *args, **kwargs):
+    def post(self, *args, **kwargs):
         carrinho = self.request.session.get('carrinho', {})
 
         total = sum(_obter_preco_total_item(item) for item in carrinho.values())
@@ -36,7 +36,7 @@ class AdicionarAoCarrinho(View):
         http_referer = self.request.META.get('HTTP_REFERER', reverse(
             'produto:lista')) 
         
-        variacao_id = self.request.GET.get('vid')
+        variacao_id = self.request.POST.get('vid')
 
         if not variacao_id:
             messages.error(self.request, 'Produto não encontrado')
@@ -123,8 +123,8 @@ class RemoverProdutoDoCarrinho(View):
     URL: /carrinho/removerdocarrinho/<int:produto_id>/
     """
 
-    def get(self, *args, **kwargs):
-        variacao_id = self.request.GET.get('vid')
+    def post(self, *args, **kwargs):
+        variacao_id = self.request.POST.get('vid')
 
         if not variacao_id:
             messages.error(self.request, 'Produto não encontrado no carrinho.')
