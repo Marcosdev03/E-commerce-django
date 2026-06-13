@@ -32,7 +32,7 @@ class AdicionarAoCarrinho(View):
     URL: /carrinho/adicionar/<int:produto_id>/
     """
 
-    def get(self, *args, **kwargs):
+    def post(self, *args, **kwargs):
         http_referer = self.request.META.get('HTTP_REFERER', reverse(
             'produto:lista')) 
         
