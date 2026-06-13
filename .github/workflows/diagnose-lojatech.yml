@@ -1,11 +1,6 @@
 name: Diagnose LojaTech
 
 on:
-  push:
-    branches:
-      - producao
-    paths:
-      - .github/workflows/diagnose-lojatech.yml
   workflow_dispatch:
 
 permissions:

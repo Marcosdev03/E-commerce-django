@@ -1,12 +1,6 @@
 name: Cut over to public PostgreSQL
 
 on:
-  push:
-    branches:
-      - producao
-    paths:
-      - Dockerfile
-      - .github/workflows/migrate-postgresql-public.yml
   workflow_dispatch:
     inputs:
       allowed_ip:
