@@ -33,7 +33,7 @@ jobs:
           db_name="lojatech"
           db_host="${server_name}.postgres.database.azure.com"
 
-          db_password="$(LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 40)"
+          db_password="$(openssl rand -hex 24)"
           database_url="postgresql://${db_user}:${db_password}@${db_host}:5432/${db_name}?sslmode=require"
 
           az postgres flexible-server update \
