@@ -80,15 +80,15 @@ jobs:
             >/dev/null
 
           az postgres flexible-server firewall-rule delete \
-            --name "$NEW_SERVER" \
+            --server-name "$NEW_SERVER" \
             --resource-group "$RESOURCE_GROUP" \
-            --rule-name dbeaver-home \
+            --name dbeaver-home \
             --yes \
             >/dev/null 2>&1 || true
           az postgres flexible-server firewall-rule create \
-            --name "$NEW_SERVER" \
+            --server-name "$NEW_SERVER" \
             --resource-group "$RESOURCE_GROUP" \
-            --rule-name dbeaver-home \
+            --name dbeaver-home \
             --start-ip-address "$ALLOWED_IP" \
             --end-ip-address "$ALLOWED_IP" \
             >/dev/null
