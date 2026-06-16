@@ -14,16 +14,16 @@ def _obter_preco_total_item(item):
 
 
 class Carrinho(View):
-    def post(self, *args, **kwargs):
+    def get(self, *args, **kwargs):
         carrinho = self.request.session.get('carrinho', {})
 
         total = sum(_obter_preco_total_item(item) for item in carrinho.values())
-        
+
         contexto = {
             'carrinho': carrinho,
-            'preco_quantitativo': total
+            'preco_quantitativo': total,
         }
-        
+
         return render(self.request, 'carrinho_de_compras/carrinho.html', contexto)
 
 
