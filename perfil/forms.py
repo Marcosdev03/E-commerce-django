@@ -8,6 +8,11 @@ class PerfilForm(forms.ModelForm):
     class Meta:
         model = Perfil
         fields = ['data_nascimento', 'cpf', 'telefone']
+        labels = {
+            'data_nascimento': 'Data de nascimento',
+            'cpf': 'CPF',
+            'telefone': 'Telefone'
+        }
         widgets = {
             'data_nascimento': forms.DateInput(attrs={'type': 'date'}),
         }
@@ -25,6 +30,12 @@ class UserForm(forms.ModelForm):
     class Meta:
         model = User
         fields = ['first_name', 'last_name', 'username', 'email']
+        labels = {
+            'first_name': 'Nome',
+            'last_name': 'Sobrenome',
+            'username': 'Usuário',
+            'email': 'E-mail'
+        }   
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -46,6 +57,12 @@ class UserUpdateForm(forms.ModelForm):
     class Meta:
         model = User
         fields = ['first_name', 'last_name', 'username', 'email']
+        labels = {
+            'first_name': 'Nome',
+            'last_name': 'Sobrenome',
+            'username': 'Usuário',          
+            'email': 'E-mail'
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
