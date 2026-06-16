@@ -26,4 +26,5 @@ jobs:
             docker compose down
             docker compose up -d --build
             docker image prune -f
+            sleep 10
             curl -I https://lojatech.store
