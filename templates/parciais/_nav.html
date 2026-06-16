@@ -25,8 +25,9 @@
                 <div class="dropdown-menu">
                     <a class="dropdown-item" href="{% url 'produto:lista' %}">Todas</a>
                     {% for categoria in categorias_nav %}
-                    <a class="dropdown-item" href="{% url 'produto:lista' %}?categoria={{ categoria.slug }}">{{
-                        categoria.nome }}</a>
+                    <a class="dropdown-item" href="{% url 'produto:lista' %}?categoria={{ categoria.slug }}">
+                        {{categoria.nome }}
+                    </a>
                     {% empty %}
                     <span class="dropdown-item text-muted">Sem categorias</span>
                     {% endfor %}
