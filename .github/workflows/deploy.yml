@@ -1,0 +1,29 @@
+name: Deploy Ecommerce
+
+on:
+  push:
+    branches:
+      - producao
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy na VPS
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script_stop: true
+          script: |
+            cd ${{ secrets.VPS_PROJECT_PATH }}
+            git fetch origin
+            git reset --hard origin/producao
+            git clean -fd
+            docker compose down
+            docker compose up -d --build
+            docker image prune -f
+            curl -I https://lojatech.store
